@@ -1,5 +1,4 @@
 #define KILL_CHILD 0
-#define PATH_TO_PID "/home/alexei/pid.t"
 
 #include <iostream>
 #include <cstring>
@@ -15,7 +14,9 @@
 
 void createPID()
 {
-    std::ofstream file(PATH_TO_PID);
+    std::string path = getenv("HOME");
+    path += "/pid.t";
+    std::ofstream file(path);
 
     file << getpid();
 
@@ -24,7 +25,9 @@ void createPID()
 
 void deletePID()
 {
-    remove(PATH_TO_PID);
+    std::string path = getenv("HOME");
+    path += "/pid.t";
+    remove(path.c_str());
 }
 
 void handle(int signum)
