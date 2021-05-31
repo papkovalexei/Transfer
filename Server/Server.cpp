@@ -146,24 +146,31 @@ void Server::_saveFile(sock socket)
         else if (sizeFile == 0)
         {
             sizeFile = atoi(buffer.data());
-
             char buf[] = "accept";
             send(socket, buf, sizeof(buf), 0);
         }
         else
         {
             int read = res;
-            fwrite(buffer.data(), sizeof(char), read*sizeof(char), file);
+            
+            if (read > sizeFile)
+                fwrite(buffer.data(), sizeof(char), sizeFile*sizeof(char), file);
+            else
+                fwrite(buffer.data(), sizeof(char), read*sizeof(char), file);
 
             while (read < sizeFile)
             {
                 buffer.clear();
                 buffer.resize(chunk);
-                
                 int now = recv(socket, buffer.data(), chunk, 0);
+
+                if (read + now > sizeFile)
+                    fwrite(buffer.data(), sizeof(char), (sizeFile - read)*sizeof(char), file);
+                else
+                    fwrite(buffer.data(), sizeof(char), now*sizeof(char), file);
+
                 read += now;
 
-                fwrite(buffer.data(), sizeof(char), now*sizeof(char), file);
             }
             break;
         }
