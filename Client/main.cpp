@@ -13,6 +13,24 @@
 #include <mutex>
 #include <vector>
 
+bool sendAll(int sock, const char* buffer, size_t length)
+{
+    char *ptr = (char*) buffer;
+
+    while (length > 0)
+    {
+        int i = send(sock, ptr, length, 0);
+
+        if (i < 1) 
+            return false;
+
+        ptr += i;
+        length -= i;
+    }
+
+    return true;
+}
+
 int main(int argc, char const *argv[]) // port address path
 {
     if (argc != 4)
@@ -35,13 +53,15 @@ int main(int argc, char const *argv[]) // port address path
     address.sin_port = htons(std::atoi(argv[1]));
     inet_pton(AF_INET, argv[2], &(address.sin_addr));
 
-
     connect(sock, (sockaddr*)&address, sizeof(address));
-
-    send(sock, fileName.c_str(), sizeof(fileName.c_str()), 0);
 
     char buffer[12];
 
+    std::string sizeName = std::to_string(fileName.size());
+    send(sock, sizeName.c_str(), sizeof(char)*sizeName.size(), 0);
+    recv(sock, buffer, 12, 0); // received
+
+    sendAll(sock, fileName.c_str(), sizeof(char)*fileName.size());
     recv(sock, buffer, 12, 0); // create file
 
     FILE* file = fopen(path.c_str(), "rb");
@@ -50,13 +70,17 @@ int main(int argc, char const *argv[]) // port address path
     size_t len = ftell(file);
     rewind(file);
 
-    std::vector<char> input(len + 1);
+    std::string sizeFile = std::to_string(len);
+    send(sock, sizeFile.c_str(), sizeof(char)*sizeFile.size(), 0);
+    recv(sock, buffer, 12, 0); // accept
 
-    fread(input.data(), 1, len, file);
+    const int chunk = 512;
+    char data[chunk];
 
-    input[len] = '\0';
-    send(sock, input.data(), len + 1, 0);
+    while (fread(data, sizeof(char), chunk, file))
+        sendAll(sock, data, chunk);
 
+    recv(sock, buffer, 12, 0); // received
     fclose(file);
 
     shutdown(sock, 2);

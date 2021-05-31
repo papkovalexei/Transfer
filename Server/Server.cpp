@@ -112,37 +112,69 @@ void Server::_saveFile(sock socket)
     int res = 1;
     FILE* file;
     std::string name = "";
-
+    size_t sizeFile = 0, chunk = 8192;
     do
     {
-        std::vector<char> buffer(1024);
-
+        std::vector<char> buffer(chunk);
         res = recv(socket, buffer.data(), buffer.size(), 0);
-
-        if (res <= 0)
-            break;
 
         if (name.empty())
         {
-            name = buffer.data();
+            char buf[] = "flag";
+            std::string sizeName = "";
+            int rec = res;
+            
+            sizeName = buffer.data();
+            send(socket, buf, sizeof(buf), 0);
+
+            rec = 0;
+            int len = atoi(sizeName.c_str());
+            name = "";
+            while (rec < len)
+            {
+                rec += recv(socket, buffer.data(), chunk, 0);
+                name += buffer.data();
+                buffer.clear();
+                buffer.resize(chunk);
+            }
 
             file = fopen(name.c_str(), "wb");
 
-            char buf[] = "create";
+            send(socket, buf, sizeof(buf), 0);
+            res = rec;
+        }
+        else if (sizeFile == 0)
+        {
+            sizeFile = atoi(buffer.data());
+
+            char buf[] = "accept";
             send(socket, buf, sizeof(buf), 0);
         }
         else
         {
-            fwrite(buffer.data(), 1, strlen(buffer.data()), file);
+            int read = res;
+            fwrite(buffer.data(), sizeof(char), read*sizeof(char), file);
+
+            while (read < sizeFile)
+            {
+                buffer.clear();
+                buffer.resize(chunk);
+                
+                int now = recv(socket, buffer.data(), chunk, 0);
+                read += now;
+
+                fwrite(buffer.data(), sizeof(char), now*sizeof(char), file);
+            }
+            break;
         }
     } while (res > 0);
     
-    fclose(file);
+    char buf[] = "received";
+    send(socket, buf, sizeof(buf), 0);
 
-    std::cout << "Start del\n";
+    fclose(file);
     auto del = std::thread([this, socket]{_deleteClient(socket);});
     del.detach();
-    std::cout << "Detach\n";
 }
 
 void Server::_enableKeepalive(sock socket)

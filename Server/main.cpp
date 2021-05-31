@@ -58,7 +58,10 @@ int startWork(std::string path)
     Server::getInstance()->setConfig(port, address);
     Server::getInstance()->start();
 
-    while (Server::getInstance()->getState() == Server::STATE::WORK) {}
+    while (Server::getInstance()->getState() == Server::STATE::WORK) 
+    {
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+    }
 
     deletePID();
 
@@ -87,7 +90,6 @@ int main(int argc, char const *argv[])
     {
         umask(0);
         setsid();
-        chdir("~/");
 
         return startWork(argv[1]);
     }
